@@ -11,8 +11,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Unzip project
-        run: unzip -q LightMaze3D.zip
+      - name: Unzip and locate project
+        run: |
+          mkdir -p proj
+          unzip -q LightMaze3D.zip -d proj
+          SETTINGS=$(find proj -name settings.gradle -not -path "*/node_modules/*" | head -1)
+          echo "settings found: $SETTINGS"
+          find proj -maxdepth 3 | head -40
+          if [ -z "$SETTINGS" ]; then echo "NO settings.gradle INSIDE THE ZIP"; exit 1; fi
+          echo "PROJECT_DIR=$(dirname "$SETTINGS")" >> "$GITHUB_ENV"
 
       - uses: actions/setup-java@v4
         with:
@@ -30,10 +37,15 @@ jobs:
           gradle-version: '8.2'
 
       - name: Build debug APK
-        working-directory: LightMaze3D
+        working-directory: ${{ env.PROJECT_DIR }}
         run: gradle assembleDebug --no-daemon --console=plain
+
+      - name: Collect APK
+        run: |
+          mkdir -p out
+          cp ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk out/
 
       - uses: actions/upload-artifact@v4
         with:
           name: LightMaze3D-APK
-          path: LightMaze3D/app/build/outputs/apk/debug/*.apk
+          path: out/*.apk
