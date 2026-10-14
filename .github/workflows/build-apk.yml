@@ -21,6 +21,11 @@ jobs:
           if [ -z "$SETTINGS" ]; then echo "NO settings.gradle INSIDE THE ZIP"; exit 1; fi
           echo "PROJECT_DIR=$(dirname "$SETTINGS")" >> "$GITHUB_ENV"
 
+      - name: Fix timestamps
+        run: |
+          find proj -type f -exec touch {} +
+          find proj -type d -name .cxx -prune -exec rm -rf {} +
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
