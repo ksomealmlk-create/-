@@ -11,6 +11,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Show files (للتأكد من مكان الملفات)
+        run: ls -la
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -27,7 +30,11 @@ jobs:
           gradle-version: '8.2'
 
       - name: Build debug APK
-        run: gradle assembleDebug --no-daemon --stacktrace
+        run: gradle assembleDebug --no-daemon --console=plain 2>&1 | grep -v "^\s*at " | tail -60
+        shell: bash {0}
+
+      - name: Check APK exists
+        run: ls -la app/build/outputs/apk/debug/
 
       - uses: actions/upload-artifact@v4
         with:
