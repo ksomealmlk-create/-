@@ -14,17 +14,24 @@ jobs:
       - name: Unzip and locate project
         run: |
           mkdir -p proj
-          unzip -q LightMaze3D.zip -d proj
-          SETTINGS=$(find proj -name settings.gradle -not -path "*/node_modules/*" | head -1)
-          echo "settings found: $SETTINGS"
-          find proj -maxdepth 3 | head -40
-          if [ -z "$SETTINGS" ]; then echo "NO settings.gradle INSIDE THE ZIP"; exit 1; fi
-          echo "PROJECT_DIR=$(dirname "$SETTINGS")" >> "$GITHUB_ENV"
+          n=0
+          for z in $(find . -maxdepth 2 -iname '*.zip' -not -path './proj/*'); do
+            n=$((n+1))
+            mkdir -p "proj/z$n"
+            unzip -q -o "$z" -d "proj/z$n" || true
+          done
+          S=$(find proj -name settings.gradle | head -n 1)
+          if [ -z "$S" ]; then
+            echo "NO settings.gradle FOUND"
+            find proj -maxdepth 4 | head -50
+            exit 1
+          fi
+          DIR=$(dirname "$S")
+          echo "Project dir: $DIR"
+          echo "PROJ_DIR=$DIR" >> "$GITHUB_ENV"
 
       - name: Fix timestamps
-        run: |
-          find proj -type f -exec touch {} +
-          find proj -type d -name .cxx -prune -exec rm -rf {} +
+        run: find "$PROJ_DIR" -exec touch {} + || true
 
       - uses: actions/setup-java@v4
         with:
@@ -42,13 +49,14 @@ jobs:
           gradle-version: '8.2'
 
       - name: Build debug APK
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: gradle assembleDebug --no-daemon --console=plain
+        working-directory: ${{ env.PROJ_DIR }}
+        run: gradle assembleDebug --no-daemon --stacktrace
 
       - name: Collect APK
         run: |
           mkdir -p out
-          cp ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk out/
+          find "$PROJ_DIR" -name '*.apk' -exec cp {} out/ \;
+          ls -la out
 
       - uses: actions/upload-artifact@v4
         with:
